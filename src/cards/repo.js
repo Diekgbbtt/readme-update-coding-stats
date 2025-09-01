@@ -60,6 +60,8 @@ const renderRepoCard = (repo, options = {}) => {
     nameWithOwner,
     description,
     primaryLanguage,
+    additionsCount,
+    deletionsCount,
     isArchived,
     isTemplate,
     starCount,
@@ -102,7 +104,7 @@ const renderRepoCard = (repo, options = {}) => {
     .join("");
 
   const height =
-    (descriptionLinesCount > 1 ? 120 : 110) +
+    (descriptionLinesCount > 1 ? 140 : 130) +
     descriptionLinesCount * lineHeight;
 
   const i18n = new I18n({
@@ -126,6 +128,8 @@ const renderRepoCard = (repo, options = {}) => {
 
   const totalStars = kFormatter(starCount);
   const totalForks = kFormatter(forkCount);
+  const totalAdditions = kFormatter(additionsCount);
+  const totalDeletions = kFormatter(deletionsCount);
   const svgStars = iconWithLabel(
     icons.star,
     totalStars,
@@ -138,8 +142,20 @@ const renderRepoCard = (repo, options = {}) => {
     "forkcount",
     ICON_SIZE,
   );
+  const svgAdditions = iconWithLabel(
+    icons.add,
+    totalAdditions,
+    "commitscoladded",
+    ICON_SIZE,
+  );
+  const svgDeletions = iconWithLabel(
+    icons.delete,
+    totalDeletions,
+    "commitscoldeleted",
+    ICON_SIZE,
+  );
 
-  const starAndForkCount = flexLayout({
+  const langAndStarForkCountSvg = flexLayout({
     items: [svgLanguage, svgStars, svgForks],
     sizes: [
       measureText(langName, 12),
@@ -149,6 +165,15 @@ const renderRepoCard = (repo, options = {}) => {
     gap: 25,
   }).join("");
 
+  const commitsLocAddDelSvg = flexLayout({
+    items: [svgAdditions, svgDeletions],
+    sizes: [
+      measureText(`${totalAdditions}`, 12),
+      measureText(`${totalDeletions}`, 12),
+    ],
+    gap: 25,
+  }).join("");
+  
   const card = new Card({
     defaultTitle: header.length > 35 ? `${header.slice(0, 35)}...` : header,
     titlePrefixIcon: icons.contribs,
@@ -185,7 +210,11 @@ const renderRepoCard = (repo, options = {}) => {
     </text>
 
     <g transform="translate(30, ${height - 75})">
-      ${starAndForkCount}
+      ${langAndStarForkCountSvg}
+    </g>
+
+    <g transform="translate(30, ${height - 100})">
+    ${commitsLocAddDelSvg}
     </g>
   `);
 };

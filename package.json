@@ -11,9 +11,6 @@
   "main": "src/index.js",
   "type": "module",
   "homepage": "https://github.com/anuraghazra/github-readme-stats",
-  "bugs": {
-    "url": "https://github.com/anuraghazra/github-readme-stats/issues"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/anuraghazra/github-readme-stats.git"

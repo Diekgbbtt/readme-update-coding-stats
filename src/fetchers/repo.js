@@ -17,44 +17,174 @@ import { MissingParamError, request } from "../common/utils.js";
 const fetcher = (variables, token) => {
   return request(
     {
-      query: `
-      fragment RepoInfo on Repository {
-        name
-        nameWithOwner
-        isPrivate
-        isArchived
-        isTemplate
-        stargazers {
-          totalCount
-        }
-        description
-        primaryLanguage {
-          color
-          id
-          name
-        }
-        forkCount
-      }
-      query getRepo($login: String!, $repo: String!) {
-        user(login: $login) {
-          repository(name: $repo) {
-            ...RepoInfo
-          }
-        }
-        organization(login: $login) {
-          repository(name: $repo) {
-            ...RepoInfo
-          }
-        }
-      }
-    `,
-      variables,
+      variables
     },
     {
       Authorization: `token ${token}`,
     },
   );
 };
+
+/**
+ * Calculate total additions and deletions from commit history.
+ *
+ * @param {object} history - Commit history object
+ * @param {number} history.totalCount - Total number of commits
+ * @param {Array} history.nodes - Array of commit objects
+ * @returns {object} Object with totalAdditions and totalDeletions
+ */
+const calculateTotals = (history) => {
+  let totalAdditions = 0;
+  let totalDeletions = 0;
+
+  for (let i = 0; i < history.totalCount && i < history.nodes.length; i++) {
+    const node = history.nodes[i];
+    totalAdditions += node.additions || 0;
+    totalDeletions += node.deletions || 0;
+  }
+
+  return {
+    totalAdditions,
+    totalDeletions
+  };
+};
+
+/**
+ * @typedef {import("./types").RepositoryCommitsData} RepositoryCommitsData Repository data.
+*/
+
+/**
+ * Fetch repository data.
+ *
+ * @param {string} username GitHub username.
+ * @param {string} reponame GitHub repository name.
+ * @returns {Promise<RepositoryCommitsData>} Repository data.
+ */
+const fetchRepoCommits = async (username, reponame) => {
+
+  const q = ` 
+  query getRepoAndUser($login: String!, $repo: String!) {
+  user(login: $login) {
+    id
+    login
+  }
+  repository(owner: $login, name: $repo) {
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(first: 100) {
+            totalCount
+            nodes {
+              oid
+              author {
+                user {
+                  id
+                  login
+                }
+              }
+              additions
+              deletions
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+  let res = await retryer(fetcher, {query: q, login: username, repo: reponame});
+  
+  if (!res.data.data.user.repository || !res.data.data.user.repository.defaultBranchRef) {
+    throw new Error("Repository or defaultBranchRef not found");
+  }
+
+  if (res.data.data.user.repository.defaultBranchRef.target.history.nodes.length === 0) {
+    throw new Error("No commits found");
+  }
+
+  return calculateTotals(res.data.data.user.repository.defaultBranchRef.target.history);
+};
+  /**
+ * @typedef {import("./types").RepositoryMetaData} RepositoryMetaData Repository data.
+*/
+
+/**
+ * Fetch repository data.
+ *
+ * @param {string} username GitHub username.
+ * @param {string} reponame GitHub repository name.
+ * @returns {Promise<RepositoryMetaData>} Repository data.
+ */
+const fetchRepoMeta = async (username, reponame) => {
+
+  const q = `
+    fragment RepoInfo on Repository {
+      name
+      nameWithOwner
+      isPrivate
+      isArchived
+      isTemplate
+      stargazers {
+        totalCount
+      }
+      description
+      primaryLanguage {
+        color
+        id
+        name
+      }
+      forkCount
+    }
+    query getRepo($login: String!, $repo: String!) {
+      user(login: $login) {
+        repository(name: $repo) {
+          ...RepoInfo
+        }
+      }
+      organization(login: $login) {
+        repository(name: $repo) {
+          ...RepoInfo
+        }
+      }
+    }
+  `;
+
+  let res = await retryer(fetcher, {query: q, login: username, repo: reponame});
+
+  const data = res.data.data;
+
+  if (!data.user && !data.organization) {
+    throw new Error("Not found");
+  }
+
+  const isUser = data.organization === null && data.user;
+  const isOrg = data.user === null && data.organization;
+  
+  if (isUser) {
+    if (!data.user.repository || data.user.repository.isPrivate) {
+      throw new Error("User Repository Not found");
+    }
+    return {
+      ...data.user.repository,
+      starCount: data.user.repository.stargazers.totalCount
+    };
+  }
+
+  if (isOrg) {
+    if (
+      !data.organization.repository ||
+      data.organization.repository.isPrivate
+    ) {
+      throw new Error("Organization Repository Not found");
+    }
+    return {
+      ...data.organization.repository,
+      starCount: data.organization.repository.stargazers.totalCount,
+    };
+  }
+
+  throw new Error("Unexpected behavior");
+}
 
 const urlExample = "/api/pin?username=USERNAME&amp;repo=REPO_NAME";
 
@@ -80,39 +210,14 @@ const fetchRepo = async (username, reponame) => {
     throw new MissingParamError(["repo"], urlExample);
   }
 
-  let res = await retryer(fetcher, { login: username, repo: reponame });
+  let repoMeta = await fetchRepoMeta(username, reponame);
+  let repoCommits = await fetchRepoCommits(username, reponame);
 
-  const data = res.data.data;
-
-  if (!data.user && !data.organization) {
-    throw new Error("Not found");
-  }
-
-  const isUser = data.organization === null && data.user;
-  const isOrg = data.user === null && data.organization;
-
-  if (isUser) {
-    if (!data.user.repository || data.user.repository.isPrivate) {
-      throw new Error("User Repository Not found");
-    }
     return {
-      ...data.user.repository,
-      starCount: data.user.repository.stargazers.totalCount,
+      ...repoMeta,
+      ...repoCommits,
     };
-  }
 
-  if (isOrg) {
-    if (
-      !data.organization.repository ||
-      data.organization.repository.isPrivate
-    ) {
-      throw new Error("Organization Repository Not found");
-    }
-    return {
-      ...data.organization.repository,
-      starCount: data.organization.repository.stargazers.totalCount,
-    };
-  }
 
   throw new Error("Unexpected behavior");
 };

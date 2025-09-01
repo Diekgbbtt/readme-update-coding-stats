@@ -7,7 +7,15 @@ export type GistData = {
   forksCount: number;
 };
 
-export type RepositoryData = {
+export type RepositoryData = RepositoryMetaData & RepositoryCommitsData;
+
+export type RepositoryCommitsData = {
+  additionsCount: number;
+  deletionsCount: number;
+};
+
+
+export type RepositoryMetaData = {
   name: string;
   nameWithOwner: string;
   isPrivate: boolean;

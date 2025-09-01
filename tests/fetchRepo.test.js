@@ -6,15 +6,36 @@ import { expect, it, describe, afterEach } from "@jest/globals";
 
 const data_repo = {
   repository: {
-    name: "convoychat",
-    stargazers: { totalCount: 38000 },
-    description: "Help us take over the world! React + TS + GraphQL Chat App",
+    name: "tlsscanner",
+    stargazers: { totalCount: 0 },
+    description: "",
     primaryLanguage: {
-      color: "#2b7489",
-      id: "MDg6TGFuZ3VhZ2UyODc=",
-      name: "TypeScript",
+      color: "#",
+      id: "",
+      name: "",
     },
-    forkCount: 100,
+    forkCount: 0,
+    defaultBranchRef: {
+      target: {
+        history: {
+          totalCount: 2,
+          nodes: [
+            {
+              oid: "abc123",
+              author: { user: { id: "1", login: "testuser" } },
+              additions: 10,
+              deletions: 5
+            },
+            {
+              oid: "def456", 
+              author: { user: { id: "1", login: "testuser" } },
+              additions: 15,
+              deletions: 3
+            }
+          ]
+        }
+      }
+    }
   },
 };
 
@@ -42,21 +63,33 @@ describe("Test fetchRepo", () => {
   it("should fetch correct user repo", async () => {
     mock.onPost("https://api.github.com/graphql").reply(200, data_user);
 
-    let repo = await fetchRepo("anuraghazra", "convoychat");
+    let repo = await fetchRepo("diekgbbtt", "tlsscanner");
 
     expect(repo).toStrictEqual({
-      ...data_repo.repository,
-      starCount: data_repo.repository.stargazers.totalCount,
+      repoMeta: {
+        ...data_repo.repository,
+        starCount: data_repo.repository.stargazers.totalCount,
+      },
+      repoCommits: {
+        totalAdditions: 25,
+        totalDeletions: 8,
+      }
     });
   });
 
   it("should fetch correct org repo", async () => {
     mock.onPost("https://api.github.com/graphql").reply(200, data_org);
 
-    let repo = await fetchRepo("anuraghazra", "convoychat");
+    let repo = await fetchRepo("diekgbbtt", "tlsscanner");
     expect(repo).toStrictEqual({
-      ...data_repo.repository,
-      starCount: data_repo.repository.stargazers.totalCount,
+      repoMeta: {
+        ...data_repo.repository,
+        starCount: data_repo.repository.stargazers.totalCount,
+      },
+      repoCommits: {
+        totalAdditions: 25,
+        totalDeletions: 8,
+      }
     });
   });
 
@@ -65,7 +98,7 @@ describe("Test fetchRepo", () => {
       .onPost("https://api.github.com/graphql")
       .reply(200, { data: { user: { repository: null }, organization: null } });
 
-    await expect(fetchRepo("anuraghazra", "convoychat")).rejects.toThrow(
+    await expect(fetchRepo("diekgbbtt", "tlsscanner")).rejects.toThrow(
       "User Repository Not found",
     );
   });
@@ -75,7 +108,7 @@ describe("Test fetchRepo", () => {
       .onPost("https://api.github.com/graphql")
       .reply(200, { data: { user: null, organization: { repository: null } } });
 
-    await expect(fetchRepo("anuraghazra", "convoychat")).rejects.toThrow(
+    await expect(fetchRepo("diekgbbtt", "tlsscanner")).rejects.toThrow(
       "Organization Repository Not found",
     );
   });
@@ -85,7 +118,7 @@ describe("Test fetchRepo", () => {
       .onPost("https://api.github.com/graphql")
       .reply(200, { data: { user: null, organization: null } });
 
-    await expect(fetchRepo("anuraghazra", "convoychat")).rejects.toThrow(
+    await expect(fetchRepo("diekgbbtt", "tlsscanner")).rejects.toThrow(
       "Not found",
     );
   });
@@ -98,7 +131,7 @@ describe("Test fetchRepo", () => {
       },
     });
 
-    await expect(fetchRepo("anuraghazra", "convoychat")).rejects.toThrow(
+    await expect(fetchRepo("diekgbbtt", "tlsscanner")).rejects.toThrow(
       "User Repository Not found",
     );
   });
