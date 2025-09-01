@@ -94,15 +94,15 @@ const fetchRepoCommits = async (username, reponame) => {
 
   let res = await retryer(fetcher, {query: q, login: username, repo: reponame});
   
-  if (!res.data.data.user.repository || !res.data.data.user.repository.defaultBranchRef) {
+  if (!res.data.data.repository || !res.data.data.repository.defaultBranchRef) {
     throw new Error("Repository or defaultBranchRef not found");
   }
 
-  if (res.data.data.user.repository.defaultBranchRef.target.history.nodes.length === 0) {
+  if (res.data.data.repository.defaultBranchRef.target.history.nodes.length === 0) {
     throw new Error("No commits found");
   }
 
-  return calculateTotals(res.data.data.user.repository.defaultBranchRef.target.history);
+  return calculateTotals(res.data.data.repository.defaultBranchRef.target.history);
 };
   /**
  * @typedef {import("./types").RepositoryMetaData} RepositoryMetaData Repository data.
