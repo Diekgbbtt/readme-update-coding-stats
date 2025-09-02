@@ -10,14 +10,15 @@ import { MissingParamError, request } from "../common/utils.js";
 /**
  * Repo data fetcher.
  *
- * @param {AxiosRequestHeaders} variables Fetcher variables.
+ * @param {object} reqData Fetcher graphQL post request data.
  * @param {string} token GitHub token.
  * @returns {Promise<AxiosResponse>} The response.
  */
-const fetcher = (variables, token) => {
+const fetcher = (reqData, token) => {
   return request(
     {
-      variables
+      query: reqData.query,
+      variables: reqData.variables,
     },
     {
       Authorization: `token ${token}`,
@@ -29,23 +30,23 @@ const fetcher = (variables, token) => {
  * Calculate total additions and deletions from commit history.
  *
  * @param {object} history - Commit history object
- * @param {number} history.totalCount - Total number of commits
  * @param {Array} history.nodes - Array of commit objects
- * @returns {object} Object with totalAdditions and totalDeletions
+ * @returns {object} Object with additionsCount and deletionsCount
  */
-const calculateTotals = (history) => {
-  let totalAdditions = 0;
-  let totalDeletions = 0;
+const totalAdditionsAndDeletionsByUser = (history, username) => {
+  let additionsCount = 0;
+  let deletionsCount = 0;
 
-  for (let i = 0; i < history.totalCount && i < history.nodes.length; i++) {
-    const node = history.nodes[i];
-    totalAdditions += node.additions || 0;
-    totalDeletions += node.deletions || 0;
+  for (let i = 0; i < history.nodes.length; i++) {
+    if (history.nodes[i].author.user && history.nodes[i].author.user.login.toLowerCase() === username.toLowerCase()) {
+        additionsCount += history.nodes[i].additions || 0;
+        deletionsCount += history.nodes[i].deletions || 0;
+    }
   }
 
   return {
-    totalAdditions,
-    totalDeletions
+    additionsCount,
+    deletionsCount
   };
 };
 
@@ -92,11 +93,9 @@ const fetchRepoCommits = async (username, reponame) => {
   }
 }`;
 
-  let res = await retryer(fetcher, {query: q, login: username, repo: reponame});
+  let res = await retryer(fetcher, {query: q, variables: {login: username, repo: reponame}});
 
   const data = res.data.data;
-
-  console.log(data.repository.defaultBranchRef.target.history);
   
   if (!data.repository || !data.repository.defaultBranchRef) {
     throw new Error("Repository or defaultBranchRef not found");
@@ -106,7 +105,7 @@ const fetchRepoCommits = async (username, reponame) => {
     throw new Error("No commits found");
   }
 
-  return calculateTotals(data.repository.defaultBranchRef.target.history);
+  return totalAdditionsAndDeletionsByUser(data.repository.defaultBranchRef.target.history, username);
 };
   /**
  * @typedef {import("./types").RepositoryMetaData} RepositoryMetaData Repository data.
@@ -153,7 +152,7 @@ const fetchRepoMeta = async (username, reponame) => {
     }
   `;
 
-  let res = await retryer(fetcher, {query: q, login: username, repo: reponame});
+  let res = await retryer(fetcher, {query: q, variables: {login: username, repo: reponame}});
 
   const data = res.data.data;
 
