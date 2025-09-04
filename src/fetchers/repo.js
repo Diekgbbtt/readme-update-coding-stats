@@ -10,21 +10,39 @@ import { MissingParamError, request } from "../common/utils.js";
 /**
  * Repo data fetcher.
  *
- * @param {object} reqData Fetcher graphQL post request data.
+ * @param {object} reqPayload Fetcher graphQL post request data.
  * @param {string} token GitHub token.
  * @returns {Promise<AxiosResponse>} The response.
  */
-const fetcher = (reqData, token) => {
+const fetcher = (reqPayload, token) => {
   return request(
     {
-      query: reqData.query,
-      variables: reqData.variables,
+      query: reqPayload.query,
+      variables: reqPayload.variables,
     },
     {
       Authorization: `token ${token}`,
     },
   );
 };
+
+
+const filterDuplicateCommits = (branchesCommits) => {
+  
+  const uniqueCommits = [
+    ...new Set(
+      branchesCommits
+        .map(node => node.target.history.nodes)
+        .flat()
+        .map(obj => JSON.stringify(obj))
+    )
+  ].map(str => JSON.parse(str));
+
+  return uniqueCommits;
+
+}
+
+
 
 /**
  * Calculate total additions and deletions from commit history.
@@ -33,14 +51,16 @@ const fetcher = (reqData, token) => {
  * @param {Array} history.nodes - Array of commit objects
  * @returns {object} Object with additionsCount and deletionsCount
  */
-const totalAdditionsAndDeletionsByUser = (history, username) => {
+const totalAdditionsAndDeletionsByUser = (branchesCommits, username) => {
   let additionsCount = 0;
   let deletionsCount = 0;
 
-  for (let i = 0; i < history.nodes.length; i++) {
-    if (history.nodes[i].author.user && history.nodes[i].author.user.login.toLowerCase() === username.toLowerCase()) {
-        additionsCount += history.nodes[i].additions || 0;
-        deletionsCount += history.nodes[i].deletions || 0;
+  const uniqueCommits = filterDuplicateCommits(branchesCommits);
+
+  for (let i = 0; i < uniqueCommits.length; i++) {
+    if (uniqueCommits[i].author.user && uniqueCommits[i].author.user.login.toLowerCase() === username.toLowerCase()) {
+        additionsCount += uniqueCommits[i].additions || 0;
+        deletionsCount += uniqueCommits[i].deletions || 0;
     }
   }
 
@@ -63,49 +83,61 @@ const totalAdditionsAndDeletionsByUser = (history, username) => {
  */
 const fetchRepoCommits = async (username, reponame) => {
 
-  const q = ` 
-  query getRepoAndUser($login: String!, $repo: String!) {
-  user(login: $login) {
-    id
-    login
+  const q_id = `
+  {
+    user(login: $login) {
+      id
+    }
   }
+  `;
+
+  let res_id = await retryer(fetcher, {query: q_id, variables: {login: username}});
+
+  const data_id = res_id.data.data;
+
+  if (!data_id.user) {
+    throw new Error("Not found");
+  }
+
+  const id = data_id.user.id;
+
+  const q = ` 
+  {
   repository(owner: $login, name: $repo) {
-    defaultBranchRef {
-      target {
-        ... on Commit {
-          history(first: 100) {
-            totalCount
+    refs(refPrefix: "refs/heads/", first: 100) {
+      nodes {
+        name
+        target {
+          ... on Commit {
+          history(first: 100, author: {id: $id}) {
             nodes {
               oid
-              author {
-                user {
-                  id
-                  login
-                }
-              }
+              messageHeadline
+              committedDate
               additions
               deletions
             }
+          }
           }
         }
       }
     }
   }
-}`;
+}
+`;
 
-  let res = await retryer(fetcher, {query: q, variables: {login: username, repo: reponame}});
+  let res = await retryer(fetcher, {query: q, variables: {login: username, repo: reponame, id}});
 
   const data = res.data.data;
   
-  if (!data.repository || !data.repository.defaultBranchRef) {
-    throw new Error("Repository or defaultBranchRef not found");
+  if (!data.repository || !data.repository.refs) {
+    throw new Error("Repository or refs not found");
   }
 
-  if (data.repository.defaultBranchRef.target.history.nodes.length === 0) {
+  if (data.repository.refs.nodes.length === 0) {
     throw new Error("No commits found");
   }
-
-  return totalAdditionsAndDeletionsByUser(data.repository.defaultBranchRef.target.history, username);
+  return totalAdditionsAndDeletionsByUser(data.repository.refs.nodes, username);
 };
   /**
  * @typedef {import("./types").RepositoryMetaData} RepositoryMetaData Repository data.

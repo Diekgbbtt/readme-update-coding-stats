@@ -104,7 +104,7 @@ const renderRepoCard = (repo, options = {}) => {
     .join("");
 
   const height =
-    (descriptionLinesCount > 1 ? 140 : 130) +
+    (descriptionLinesCount > 1 ? 120 : 110) +
     descriptionLinesCount * lineHeight;
 
   const i18n = new I18n({
@@ -164,6 +164,18 @@ const renderRepoCard = (repo, options = {}) => {
     ],
     gap: 25,
   }).join("");
+  
+  const langAndStarForkCountCommitsLocAddDelSvg = flexLayout({
+    items: [svgLanguage, svgStars, svgForks, svgAdditions, svgDeletions],
+    sizes: [
+      measureText(langName, 12),
+      ICON_SIZE + measureText(`${totalStars}`, 12),
+      ICON_SIZE + measureText(`${totalForks}`, 12),
+      ICON_SIZE + measureText(`${totalAdditions}`, 12),
+      ICON_SIZE + measureText(`${totalDeletions}`, 12),
+    ],
+    gap: 25,
+  }).join("");
 
   const commitsLocAddDelSvg = flexLayout({
     items: [svgAdditions, svgDeletions],
@@ -210,7 +222,7 @@ const renderRepoCard = (repo, options = {}) => {
     </text>
 
     <g transform="translate(30, ${height - 75})">
-      ${langAndStarForkCountSvg}
+      ${langAndStarForkCountCommitsLocAddDelSvg}
     </g>
 
     <g transform="translate(30, ${height - 100})">
