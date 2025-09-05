@@ -154,16 +154,6 @@ const renderRepoCard = (repo, options = {}) => {
     "commitscoldeleted",
     ICON_SIZE,
   );
-
-  const langAndStarForkCountSvg = flexLayout({
-    items: [svgLanguage, svgStars, svgForks],
-    sizes: [
-      measureText(langName, 12),
-      ICON_SIZE + measureText(`${totalStars}`, 12),
-      ICON_SIZE + measureText(`${totalForks}`, 12),
-    ],
-    gap: 25,
-  }).join("");
   
   const langAndStarForkCountCommitsLocAddDelSvg = flexLayout({
     items: [svgLanguage, svgStars, svgForks, svgAdditions, svgDeletions],
@@ -173,15 +163,6 @@ const renderRepoCard = (repo, options = {}) => {
       ICON_SIZE + measureText(`${totalForks}`, 12),
       ICON_SIZE + measureText(`${totalAdditions}`, 12),
       ICON_SIZE + measureText(`${totalDeletions}`, 12),
-    ],
-    gap: 25,
-  }).join("");
-
-  const commitsLocAddDelSvg = flexLayout({
-    items: [svgAdditions, svgDeletions],
-    sizes: [
-      measureText(`${totalAdditions}`, 12),
-      measureText(`${totalDeletions}`, 12),
     ],
     gap: 25,
   }).join("");
@@ -225,9 +206,6 @@ const renderRepoCard = (repo, options = {}) => {
       ${langAndStarForkCountCommitsLocAddDelSvg}
     </g>
 
-    <g transform="translate(30, ${height - 100})">
-    ${commitsLocAddDelSvg}
-    </g>
   `);
 };
 

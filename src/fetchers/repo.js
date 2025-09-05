@@ -42,8 +42,6 @@ const filterDuplicateCommits = (branchesCommits) => {
 
 }
 
-
-
 /**
  * Calculate total additions and deletions from commit history.
  *
@@ -51,17 +49,15 @@ const filterDuplicateCommits = (branchesCommits) => {
  * @param {Array} history.nodes - Array of commit objects
  * @returns {object} Object with additionsCount and deletionsCount
  */
-const totalAdditionsAndDeletionsByUser = (branchesCommits, username) => {
+const totalAdditionsAndDeletionsByUser = (branchesCommits) => {
   let additionsCount = 0;
   let deletionsCount = 0;
 
   const uniqueCommits = filterDuplicateCommits(branchesCommits);
 
   for (let i = 0; i < uniqueCommits.length; i++) {
-    if (uniqueCommits[i].author.user && uniqueCommits[i].author.user.login.toLowerCase() === username.toLowerCase()) {
         additionsCount += uniqueCommits[i].additions || 0;
         deletionsCount += uniqueCommits[i].deletions || 0;
-    }
   }
 
   return {
@@ -84,9 +80,10 @@ const totalAdditionsAndDeletionsByUser = (branchesCommits, username) => {
 const fetchRepoCommits = async (username, reponame) => {
 
   const q_id = `
-  {
+  query ($login: String!) {
     user(login: $login) {
       id
+      login
     }
   }
   `;
@@ -102,7 +99,7 @@ const fetchRepoCommits = async (username, reponame) => {
   const id = data_id.user.id;
 
   const q = ` 
-  {
+  query ($login: String!, $repo: String!, $id: ID!) {
   repository(owner: $login, name: $repo) {
     refs(refPrefix: "refs/heads/", first: 100) {
       nodes {
@@ -137,7 +134,7 @@ const fetchRepoCommits = async (username, reponame) => {
   if (data.repository.refs.nodes.length === 0) {
     throw new Error("No commits found");
   }
-  return totalAdditionsAndDeletionsByUser(data.repository.refs.nodes, username);
+  return totalAdditionsAndDeletionsByUser(data.repository.refs.nodes);
 };
   /**
  * @typedef {import("./types").RepositoryMetaData} RepositoryMetaData Repository data.
